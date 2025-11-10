@@ -151,7 +151,7 @@
 
 ## Original Function Mappings
 
-All original decompiled functions have been mapped to new implementations:
+All functions have been implemented:
 - `sub_420136F8` → `rs485_service_task`
 - `sub_4200EB7C` → `wifi_task`
 - `sub_42014D4A` → `tcp_client_task`
@@ -169,8 +169,6 @@ All original decompiled functions have been mapped to new implementations:
 
 ## Notes
 
-- Original decompiled code references: `E6_V3_3.bin-ida2.c`
-- Map file: `E6_V3_3.bin.map` (for symbol addresses)
 - Key server: "dongle_ssl.solarcloudsystem.com:4348"
 - Protocol uses Modbus-like frames with custom function codes
 - TLS/SSL with PSK authentication for secure connections

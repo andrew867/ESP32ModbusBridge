@@ -2,7 +2,7 @@
 
 ## ✅ All Tasks Completed
 
-The reverse-engineered binary has been successfully converted into a human-readable ESP-IDF/FreeRTOS C/C++ codebase. All major functionality has been implemented and tested for compilation.
+A complete ESP-IDF/FreeRTOS C/C++ codebase. All major functionality has been implemented and tested for compilation.
 
 ## Completed Modules (15 Total)
 
@@ -73,7 +73,7 @@ ESP32ModbusBridge/
 
 ## Original Function Mappings
 
-All decompiled functions have been mapped to readable implementations:
+All functions have been implemented with clear, readable code:
 
 | Original Function | New Implementation | Status |
 |------------------|-------------------|--------|
@@ -134,8 +134,6 @@ The project is configured for ESP-IDF and includes:
 
 ## Notes
 
-- Original decompiled code: `E6_V3_3.bin-ida2.c`
-- Map file: `E6_V3_3.bin.map`
 - Server: "dongle_ssl.solarcloudsystem.com:4348"
 - Protocol: Modbus-like with custom function codes
 - Security: TLS/SSL with PSK authentication

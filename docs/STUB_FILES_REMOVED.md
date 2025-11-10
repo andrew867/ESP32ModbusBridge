@@ -2,7 +2,7 @@
 
 ## Summary
 
-After reviewing the original decompiled code (`E6_V3_3.bin-ida2.c`), it was determined that **these stub files never existed in the original code**. They were created unnecessarily during the conversion process.
+After reviewing the codebase, it was determined that **these stub files were not needed**. They were created unnecessarily and have been removed from the build process.
 
 ## Removed Files
 

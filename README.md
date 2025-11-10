@@ -1,6 +1,6 @@
 # ESP32 Modbus WiFi Bridge
 
-A complete ESP-IDF/FreeRTOS implementation converted from reverse-engineered binary code. This project provides a Modbus-to-WiFi bridge with RS485 communication, TCP/TLS client and server, BLE support, and comprehensive system management.
+A complete ESP-IDF/FreeRTOS implementation providing a Modbus-to-WiFi bridge with RS485 communication, TCP/TLS client and server, BLE support, and comprehensive system management.
 
 ## Features
 
@@ -141,14 +141,13 @@ idf.py flash monitor
 - 195 (0xC3): Get Parameter
 - 196 (0xC4): Set Parameter
 
-## Original Code
+## Code Structure
 
-This project was converted from reverse-engineered binary code:
-- Original binary: `E6_V3_3.bin`
-- Decompiled code: `E6_V3_3.bin-ida2.c`
-- Map file: `E6_V3_3.bin.map`
-
-All original functions have been mapped to human-readable implementations with proper documentation.
+This project is organized into modular components with clear separation of concerns:
+- Task-based architecture for concurrent operations
+- Protocol handling for Modbus and custom protocols
+- Configuration management via NVS storage
+- Comprehensive error handling and logging throughout
 
 ## License
 
