@@ -37,7 +37,6 @@ idf_component_register(
         "../src/system"
     REQUIRES 
         esp_https_ota
-        esp_tls
     PRIV_REQUIRES 
         nvs_flash
         esp_wifi
