@@ -43,7 +43,7 @@ jobs:
     - name: Install ESP-IDF
       uses: espressif/esp-idf-ci-action@v1
       with:
-        esp_idf_version: v5.5-latest
+        esp_idf_version: release/v5.5
         target: ${{ github.event.inputs.target || 'esp32' }}
         cache_dependency_path: |
           ESP32ModbusBridge/requirements.txt
