@@ -393,7 +393,7 @@ static void tcp_client_task(void *pvParameters)
         snprintf(port_str, sizeof(port_str), "%d", port);
         ret = getaddrinfo(host, port_str, &hints, &res);
         if (ret != 0 || res == NULL) {
-            ESP_LOGE(TAG, "getaddrinfo failed: %s", gai_strerror(ret));
+            ESP_LOGE(TAG, "getaddrinfo failed: %d", ret);
             vTaskDelay(pdMS_TO_TICKS(TCP_CLIENT_RECONNECT_DELAY));
             continue;
         }

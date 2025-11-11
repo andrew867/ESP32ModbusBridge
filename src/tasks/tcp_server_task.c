@@ -149,8 +149,6 @@ static void esp_tls_conn_delete(esp_tls_t *tls)
     free(tls);
 }
 
-static const char *TAG = "tcp_server";
-
 #define TCP_SERVER_PORT           8080
 #define TCP_SERVER_MAX_CLIENTS     4
 #define TCP_SERVER_RECV_BUF_SIZE   2048
