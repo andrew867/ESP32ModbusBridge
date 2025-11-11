@@ -42,7 +42,6 @@ idf_component_register(
         esp_event
         esp_https_ota
         app_update
-        esp_tls
         mbedtls
         bt
         driver
