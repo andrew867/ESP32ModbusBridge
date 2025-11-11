@@ -81,12 +81,45 @@ ESP32ModbusBridge/
 - CMake 3.16 or later
 - Python 3.6 or later
 
-### Build Steps
+### Quick Build (Recommended)
+
+The project includes build scripts that automatically detect your ESP-IDF installation:
+
+**Linux/macOS:**
+```bash
+cd ESP32ModbusBridge
+./build.sh [target]    # target: esp32, esp32s2, esp32s3, esp32c3, esp32c6, esp32h2 (default: esp32)
+./flash.sh [port]      # port: /dev/ttyUSB0, /dev/ttyACM0, etc. (default: /dev/ttyUSB0)
+```
+
+**Windows:**
+```cmd
+cd ESP32ModbusBridge
+build.bat [target]     # target: esp32, esp32s2, esp32s3, esp32c3, esp32c6, esp32h2 (default: esp32)
+flash.bat [port]       # port: COM3, COM4, etc. (default: COM3)
+```
+
+The build scripts will:
+- Automatically detect ESP-IDF installation from common locations
+- Set up the ESP-IDF environment
+- Build the firmware for the specified target chip
+- Create all necessary binaries (bootloader, partition table, application)
+
+### Manual Build
+
+If you prefer to build manually:
 
 ```bash
 cd ESP32ModbusBridge
+. $IDF_PATH/export.sh  # Linux/macOS
+# or
+%IDF_PATH%\export.bat  # Windows
+
+idf.py set-target esp32
 idf.py build
-idf.py flash monitor
+idf.py -p /dev/ttyUSB0 flash monitor  # Linux/macOS
+# or
+idf.py -p COM3 flash monitor          # Windows
 ```
 
 ## Configuration
