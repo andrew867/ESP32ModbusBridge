@@ -174,7 +174,6 @@ static void cmd_lptq2(const char *args)
 {
     (void)args;  // Unused
     char host[64];
-    char port_str[16];
     char response[MAX_RESPONSE_LEN];
     int32_t port = 0;
     
