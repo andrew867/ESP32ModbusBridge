@@ -22,8 +22,6 @@
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
-#include "mbedtls/error.h"
-#include "mbedtls/platform.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"

@@ -31,8 +31,6 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/md5.h"
-#include "mbedtls/error.h"
-#include "mbedtls/platform.h"
 
 static const char *TAG = "tcp_client";
 
