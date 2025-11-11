@@ -121,31 +121,10 @@ jobs:
         cp build/flash_image.bin release/ 2>/dev/null || true
         cp sdkconfig release/ 2>/dev/null || true
         
-        # Create flash script using printf to avoid YAML parsing issues
-        printf '%s\n' \
-          '#!/bin/bash' \
-          '# Flash script for ESP32ModbusBridge' \
-          '# Usage: ./flash.sh [PORT]' \
-          '# Example: ./flash.sh /dev/ttyUSB0' \
-          '' \
-          'PORT=${1:-/dev/ttyUSB0}' \
-          'CHIP=${2:-esp32}' \
-          '' \
-          'echo "Flashing ESP32ModbusBridge to $PORT"' \
-          'python $IDF_PATH/components/esptool_py/esptool/esptool.py \' \
-          '  --chip $CHIP \' \
-          '  --port $PORT \' \
-          '  --baud 921600 \' \
-          '  --before default_reset \' \
-          '  --after hard_reset \' \
-          '  write_flash \' \
-          '  -z --flash_mode dio --flash_freq 40m --flash_size 4MB \' \
-          '  0x1000 bootloader.bin \' \
-          '  0x8000 partition-table.bin \' \
-          '  0x10000 main.bin' \
-          '' \
-          'echo "Flash complete!"' > release/flash.sh
-        chmod +x release/flash.sh
+        # Copy flash scripts from repository
+        cp flash.sh release/flash.sh 2>/dev/null || true
+        cp flash.bat release/flash.bat 2>/dev/null || true
+        chmod +x release/flash.sh 2>/dev/null || true
         
         # Create Windows flash script
         cat > release/flash.bat << 'EOF'
