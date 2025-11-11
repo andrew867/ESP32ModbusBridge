@@ -126,32 +126,6 @@ jobs:
         cp flash.bat release/flash.bat 2>/dev/null || true
         chmod +x release/flash.sh 2>/dev/null || true
         
-        # Create Windows flash script
-        cat > release/flash.bat << 'EOF'
-@echo off
-REM Flash script for ESP32ModbusBridge (Windows)
-REM Usage: flash.bat [PORT]
-REM Example: flash.bat COM3
-
-set PORT=%1
-if "%PORT%"=="" set PORT=COM3
-
-echo Flashing ESP32ModbusBridge to %PORT%
-python %IDF_PATH%\components\esptool_py\esptool\esptool.py ^
-  --chip esp32 ^
-  --port %PORT% ^
-  --baud 921600 ^
-  --before default_reset ^
-  --after hard_reset ^
-  write_flash ^
-  -z --flash_mode dio --flash_freq 40m --flash_size 4MB ^
-  0x1000 bootloader.bin ^
-  0x8000 partition-table.bin ^
-  0x10000 main.bin
-
-echo Flash complete!
-EOF
-        
         # Create README for release
         BUILD_DATE="${{ steps.build_info.outputs.build_date }}"
         COMMIT_SHA="${{ steps.build_info.outputs.commit_sha }}"
