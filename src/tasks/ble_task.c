@@ -46,6 +46,10 @@ static uint16_t s_conn_handle = BLE_HS_CONN_HANDLE_NONE;  // Current connection 
 // Forward declaration
 static int ble_gap_event(struct ble_gap_event *event, void *arg);
 
+// Static buffer for BLE TX data
+static uint8_t s_ble_tx_buffer[512];
+static size_t s_ble_tx_len = 0;
+
 /**
  * @brief BLE send callback
  */
@@ -54,27 +58,21 @@ static void ble_send_callback(const uint8_t *data, size_t len)
     // Send data via BLE notify/indicate
     if (s_conn_handle != BLE_HS_CONN_HANDLE_NONE && s_char_tx_handle != 0) {
         // In ESP-IDF v5.5, ble_gatts_notify only takes conn_handle and chr_val_handle
-        // The notification will send the current characteristic value
-        // We need to update the characteristic value first, then notify
-        struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
-        if (om != NULL) {
-            // Update characteristic value
-            int rc = ble_gatts_chr_updated(s_char_tx_handle);
-            if (rc != 0) {
-                ESP_LOGE(TAG, "Failed to update characteristic: %d", rc);
-            }
+        // We need to store the data and send it via the characteristic value
+        // For now, use a simple approach: store data and trigger notification
+        if (len <= sizeof(s_ble_tx_buffer)) {
+            memcpy(s_ble_tx_buffer, data, len);
+            s_ble_tx_len = len;
             
-            // Send notification (triggers sending the characteristic value)
-            rc = ble_gatts_notify(s_conn_handle, s_char_tx_handle);
+            // Send notification (will send current characteristic value)
+            int rc = ble_gatts_notify(s_conn_handle, s_char_tx_handle);
             if (rc != 0) {
                 ESP_LOGE(TAG, "Failed to send BLE notify: %d", rc);
             } else {
                 ESP_LOGD(TAG, "BLE notify sent: %zu bytes", len);
             }
-            
-            os_mbuf_free_chain(om);
         } else {
-            ESP_LOGE(TAG, "Failed to create mbuf for BLE notify");
+            ESP_LOGE(TAG, "BLE data too large: %zu bytes", len);
         }
     } else {
         ESP_LOGD(TAG, "BLE send: %zu bytes (no connection)", len);
