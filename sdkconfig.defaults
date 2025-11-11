@@ -36,7 +36,8 @@ CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
 CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
 
 # NVS Configuration
-CONFIG_NVS_ENCRYPTION=y
+# Disable NVS encryption by default - enable per-chip if needed
+# CONFIG_NVS_ENCRYPTION is not set
 
 # TLS/SSL Configuration
 CONFIG_MBEDTLS_PSK_MODES=y
