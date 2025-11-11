@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'ESP32 target chip'
+        description: 'ESP32 target chip to build for'
         required: false
         default: 'esp32'
         type: choice
@@ -19,6 +19,11 @@ on:
           - esp32c3
           - esp32c6
           - esp32h2
+      clean_build:
+        description: 'Clean build directory before building'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -43,6 +48,13 @@ jobs:
         cache_dependency_path: |
           ESP32ModbusBridge/requirements.txt
           ESP32ModbusBridge/idf_component.yml
+
+    - name: Clean build (if requested)
+      working-directory: ESP32ModbusBridge
+      if: ${{ github.event.inputs.clean_build == 'true' }}
+      run: |
+        idf.py fullclean || true
+        rm -rf build || true
 
     - name: Set target chip
       working-directory: ESP32ModbusBridge
