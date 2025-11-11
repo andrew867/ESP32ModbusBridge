@@ -9,6 +9,7 @@
 #define WIFI_TASK_H
 
 #include "esp_err.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
