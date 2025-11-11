@@ -11,7 +11,7 @@ jobs:
     
     strategy:
       matrix:
-        target: [esp32, esp32s2, esp32s3, esp32c3]
+        target: [esp32, esp32s2, esp32s3, esp32c3, esp32c6]
         include:
           - target: esp32
             chip_name: ESP32
@@ -21,6 +21,8 @@ jobs:
             chip_name: ESP32-S3
           - target: esp32c3
             chip_name: ESP32-C3
+          - target: esp32c6
+            chip_name: ESP32-C6
     
     steps:
     - name: Checkout code
@@ -228,6 +230,7 @@ jobs:
           - **ESP32-S2** - ESP32-S2 series
           - **ESP32-S3** - ESP32-S3 series  
           - **ESP32-C3** - ESP32-C3 series
+          - **ESP32-C6** - ESP32-C6 series
           
           #### Flashing
           
