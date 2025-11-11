@@ -72,10 +72,14 @@ if %ERRORLEVEL% NEQ 0 (
 REM Set target
 echo Setting target to %TARGET%...
 
-REM Create build directory if it doesn't exist to avoid fullclean errors
-if not exist "build" mkdir build
+REM Handle build directory - create if missing, or let set-target handle it
+REM Note: set-target runs fullclean which requires a valid CMake build directory
+REM If build dir exists but is invalid, set-target will handle it
+if not exist "build" (
+    mkdir build
+)
 
-REM Set target (this may run fullclean, but we've ensured build dir exists)
+REM Set target (this may run fullclean)
 idf.py set-target %TARGET%
 if %ERRORLEVEL% NEQ 0 (
     echo Error: Failed to set target

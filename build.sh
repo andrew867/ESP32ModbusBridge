@@ -91,10 +91,12 @@ cd "$SCRIPT_DIR"
 # Set target
 echo -e "${GREEN}Setting target to $TARGET...${NC}"
 
-# Create build directory if it doesn't exist to avoid fullclean errors
+# Handle build directory - create if missing
+# Note: set-target runs fullclean which requires a valid CMake build directory
+# If build dir exists but is invalid, set-target will handle it
 mkdir -p build
 
-# Set target (this may run fullclean, but we've ensured build dir exists)
+# Set target (this may run fullclean)
 idf.py set-target "$TARGET"
 
 # Build the project
