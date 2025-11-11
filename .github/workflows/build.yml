@@ -45,9 +45,6 @@ jobs:
       with:
         esp_idf_version: release/v5.5
         target: ${{ github.event.inputs.target || 'esp32' }}
-        cache_dependency_path: |
-          ESP32ModbusBridge/requirements.txt
-          ESP32ModbusBridge/idf_component.yml
 
     - name: Clean build (if requested)
       working-directory: ESP32ModbusBridge
