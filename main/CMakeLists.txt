@@ -35,12 +35,13 @@ idf_component_register(
         "../src/utils"
         "../src/ota"
         "../src/system"
+    REQUIRES 
+        esp_https_ota
     PRIV_REQUIRES 
         nvs_flash
         esp_wifi
         esp_netif
         esp_event
-        esp_https_ota
         app_update
         mbedtls
         bt
