@@ -28,8 +28,14 @@ esp_err_t watchdog_init(void)
     }
 
     // ESP-IDF task watchdog is enabled by default
-    // We can configure it if needed
-    esp_err_t ret = esp_task_wdt_init(30, true); // 30 second timeout, panic on timeout
+    // In ESP-IDF v5.5, esp_task_wdt_init takes a config struct
+    esp_task_wdt_config_t wdt_config = {
+        .timeout_ms = 30000,  // 30 second timeout
+        .idle_core_mask = 0,  // Watch all cores
+        .trigger_panic = true // Panic on timeout
+    };
+    
+    esp_err_t ret = esp_task_wdt_init(&wdt_config);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to initialize task watchdog: %s", esp_err_to_name(ret));
         return ret;
