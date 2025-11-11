@@ -72,9 +72,15 @@ if %ERRORLEVEL% NEQ 0 (
 REM Set target
 echo Setting target to %TARGET%...
 
-REM Handle build directory - create if missing, or let set-target handle it
-REM Note: set-target runs fullclean which requires a valid CMake build directory
-REM If build dir exists but is invalid, set-target will handle it
+REM Handle build directory
+REM set-target runs fullclean which requires a valid CMake build directory
+REM If build dir exists but is invalid (no CMakeCache.txt), delete it first
+if exist "build" (
+    if not exist "build\CMakeCache.txt" (
+        echo Removing invalid build directory...
+        rmdir /s /q build
+    )
+)
 if not exist "build" (
     mkdir build
 )

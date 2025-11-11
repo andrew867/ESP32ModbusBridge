@@ -91,9 +91,13 @@ cd "$SCRIPT_DIR"
 # Set target
 echo -e "${GREEN}Setting target to $TARGET...${NC}"
 
-# Handle build directory - create if missing
-# Note: set-target runs fullclean which requires a valid CMake build directory
-# If build dir exists but is invalid, set-target will handle it
+# Handle build directory
+# set-target runs fullclean which requires a valid CMake build directory
+# If build dir exists but is invalid (no CMakeCache.txt), delete it first
+if [ -d "build" ] && [ ! -f "build/CMakeCache.txt" ]; then
+    echo -e "${YELLOW}Removing invalid build directory...${NC}"
+    rm -rf build
+fi
 mkdir -p build
 
 # Set target (this may run fullclean)
