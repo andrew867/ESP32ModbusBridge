@@ -57,6 +57,19 @@ jobs:
       working-directory: ESP32ModbusBridge
       run: |
         idf.py set-target ${{ github.event.inputs.target || 'esp32' }}
+        # Verify custom partition table is configured
+        if grep -q 'CONFIG_PARTITION_TABLE_CUSTOM=y' sdkconfig 2>/dev/null; then
+          echo "✅ Custom partition table is configured"
+        else
+          echo "⚠️  Warning: Custom partition table not found in sdkconfig"
+        fi
+        if [ -f partitions.csv ]; then
+          echo "✅ partitions.csv found"
+          grep factory partitions.csv || true
+        else
+          echo "❌ Error: partitions.csv not found!"
+          exit 1
+        fi
 
     - name: Build project
       working-directory: ESP32ModbusBridge
