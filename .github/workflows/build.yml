@@ -57,11 +57,28 @@ jobs:
       working-directory: ESP32ModbusBridge
       run: |
         idf.py set-target ${{ github.event.inputs.target || 'esp32' }}
+        # Explicitly configure custom partition table in sdkconfig
+        # Disable single app partition table
+        sed -i 's/^CONFIG_PARTITION_TABLE_SINGLE_APP=y$/# CONFIG_PARTITION_TABLE_SINGLE_APP is not set/' sdkconfig || true
+        sed -i 's/^# CONFIG_PARTITION_TABLE_CUSTOM is not set$/CONFIG_PARTITION_TABLE_CUSTOM=y/' sdkconfig || true
+        # Add custom partition table config if not present
+        if ! grep -q '^CONFIG_PARTITION_TABLE_CUSTOM=y' sdkconfig; then
+          sed -i '/# Partition Table/a CONFIG_PARTITION_TABLE_CUSTOM=y' sdkconfig || \
+          echo 'CONFIG_PARTITION_TABLE_CUSTOM=y' >> sdkconfig
+        fi
+        # Set partition table filename
+        sed -i 's|^CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=.*|CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"|' sdkconfig || \
+        sed -i '/CONFIG_PARTITION_TABLE_CUSTOM=y/a CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"' sdkconfig
+        sed -i 's|^CONFIG_PARTITION_TABLE_FILENAME=.*|CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"|' sdkconfig
         # Verify custom partition table is configured
-        if grep -q 'CONFIG_PARTITION_TABLE_CUSTOM=y' sdkconfig 2>/dev/null; then
+        if grep -q '^CONFIG_PARTITION_TABLE_CUSTOM=y' sdkconfig; then
           echo "✅ Custom partition table is configured"
+          grep "PARTITION_TABLE" sdkconfig | head -5
         else
-          echo "⚠️  Warning: Custom partition table not found in sdkconfig"
+          echo "❌ Error: Failed to configure custom partition table!"
+          echo "Current partition table config:"
+          grep "PARTITION_TABLE" sdkconfig || true
+          exit 1
         fi
         if [ -f partitions.csv ]; then
           echo "✅ partitions.csv found"
