@@ -1,0 +1,262 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on semantic version tags like v1.0.0, v2.1.3, etc.
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        target: [esp32, esp32s2, esp32s3, esp32c3]
+        include:
+          - target: esp32
+            chip_name: ESP32
+          - target: esp32s2
+            chip_name: ESP32-S2
+          - target: esp32s3
+            chip_name: ESP32-S3
+          - target: esp32c3
+            chip_name: ESP32-C3
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0  # Fetch full history for changelog generation
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install ESP-IDF
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v5.5.1
+        target: ${{ matrix.target }}
+
+    - name: Set target chip
+      working-directory: ESP32ModbusBridge
+      run: |
+        idf.py set-target ${{ matrix.target }}
+        # Verify custom partition table is configured
+        if grep -q 'CONFIG_PARTITION_TABLE_CUSTOM=y' sdkconfig 2>/dev/null; then
+          echo "✅ Custom partition table is configured"
+        else
+          echo "⚠️  Warning: Custom partition table not found in sdkconfig"
+        fi
+        if [ -f partitions.csv ]; then
+          echo "✅ partitions.csv found"
+          grep factory partitions.csv || true
+        else
+          echo "❌ Error: partitions.csv not found!"
+          exit 1
+        fi
+
+    - name: Build project
+      working-directory: ESP32ModbusBridge
+      run: |
+        idf.py build
+
+    - name: Get version info
+      working-directory: ESP32ModbusBridge
+      id: version_info
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG_NAME#v}  # Remove 'v' prefix if present
+        echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "build_date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+        echo "commit_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        echo "chip_name=${{ matrix.chip_name }}" >> $GITHUB_OUTPUT
+
+    - name: Create release package
+      working-directory: ESP32ModbusBridge
+      run: |
+        mkdir -p release/${{ matrix.target }}
+        # Find the main application binary
+        MAIN_BIN=$(find build -maxdepth 1 -name "*.bin" -type f ! -name "bootloader.bin" ! -name "partition-table.bin" | head -1)
+        if [ -n "$MAIN_BIN" ]; then
+          cp "$MAIN_BIN" release/${{ matrix.target }}/main.bin
+        fi
+        cp build/bootloader/bootloader.bin release/${{ matrix.target }}/ 2>/dev/null || true
+        cp build/partition_table/partition-table.bin release/${{ matrix.target }}/ 2>/dev/null || true
+        
+        # Copy flash scripts
+        cp flash.sh release/${{ matrix.target }}/flash.sh 2>/dev/null || true
+        cp flash.bat release/${{ matrix.target }}/flash.bat 2>/dev/null || true
+        chmod +x release/${{ matrix.target }}/flash.sh 2>/dev/null || true
+        
+        # Create combined flashable image
+        if [ -f build/bootloader/bootloader.bin ] && [ -f build/partition_table/partition-table.bin ] && [ -n "$MAIN_BIN" ]; then
+          python $IDF_PATH/components/esptool_py/esptool/esptool.py \
+            --chip ${{ matrix.target }} \
+            merge_bin \
+            -o release/${{ matrix.target }}/flash_image.bin \
+            --flash_mode dio \
+            --flash_freq 40m \
+            --flash_size 4MB \
+            0x1000 build/bootloader/bootloader.bin \
+            0x8000 build/partition_table/partition-table.bin \
+            0x10000 "$MAIN_BIN" 2>/dev/null || echo "Note: merge_bin not available, skipping combined image"
+        fi
+        
+        # Create README for this chip
+        TAG_NAME="${{ steps.version_info.outputs.tag_name }}"
+        VERSION="${{ steps.version_info.outputs.version }}"
+        BUILD_DATE="${{ steps.version_info.outputs.build_date }}"
+        COMMIT_SHA="${{ steps.version_info.outputs.commit_sha }}"
+        CHIP_NAME="${{ steps.version_info.outputs.chip_name }}"
+        {
+          printf '# ESP32ModbusBridge Firmware Release\n\n'
+          printf '**Version:** %s\n' "${TAG_NAME}"
+          printf '**Target:** %s\n' "${CHIP_NAME}"
+          printf '**Build Date:** %s\n' "${BUILD_DATE}"
+          printf '**Commit:** %s\n\n' "${COMMIT_SHA}"
+          printf '## Files\n\n'
+          printf '- `main.bin` - Main application binary\n'
+          printf '- `bootloader.bin` - Bootloader binary\n'
+          printf '- `partition-table.bin` - Partition table\n'
+          if [ -f release/${{ matrix.target }}/flash_image.bin ]; then
+            printf '- `flash_image.bin` - Combined flashable image\n'
+          fi
+          printf '- `flash.sh` - Linux/Mac flash script\n'
+          printf '- `flash.bat` - Windows flash script\n\n'
+          printf '## Flashing Instructions\n\n'
+          printf '### Linux/Mac\n'
+          printf '```bash\n'
+          printf './flash.sh /dev/ttyUSB0\n'
+          printf '```\n\n'
+          printf '### Windows\n'
+          printf '```cmd\n'
+          printf 'flash.bat COM3\n'
+          printf '```\n\n'
+          printf '### Manual (using esptool.py)\n'
+          printf '```bash\n'
+          printf 'esptool.py --chip %s --port /dev/ttyUSB0 --baud 921600 \\\n' "${{ matrix.target }}"
+          printf '  write_flash -z --flash_mode dio --flash_freq 40m --flash_size 4MB \\\n'
+          printf '  0x1000 bootloader.bin \\\n'
+          printf '  0x8000 partition-table.bin \\\n'
+          printf '  0x10000 main.bin\n'
+          printf '```\n'
+        } > release/${{ matrix.target }}/README.md
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: firmware-${{ matrix.target }}-${{ steps.version_info.outputs.tag_name }}
+        path: ESP32ModbusBridge/release/${{ matrix.target }}/*
+        retention-days: 90
+
+    - name: Create checksums
+      working-directory: ESP32ModbusBridge/release/${{ matrix.target }}
+      run: |
+        for file in *.bin; do
+          if [ -f "$file" ]; then
+            sha256sum "$file" > "${file}.sha256"
+          fi
+        done
+
+    - name: Upload checksums
+      uses: actions/upload-artifact@v4
+      with:
+        name: checksums-${{ matrix.target }}-${{ steps.version_info.outputs.tag_name }}
+        path: ESP32ModbusBridge/release/${{ matrix.target }}/*.sha256
+        retention-days: 90
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get version info
+      id: version_info
+      run: |
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG_NAME#v}
+        echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        
+        # Generate changelog from git commits since last tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -n "$PREV_TAG" ]; then
+          CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+        fi
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version_info.outputs.tag_name }}
+        name: Release ${{ steps.version_info.outputs.tag_name }}
+        body: |
+          ## ESP32ModbusBridge ${{ steps.version_info.outputs.version }}
+          
+          **Build Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          **Commit:** ${{ github.sha }}
+          
+          ### What's Changed
+          
+          ${{ steps.version_info.outputs.changelog }}
+          
+          ### Downloads
+          
+          Download the firmware for your ESP32 chip variant from the assets below.
+          
+          #### Supported Chips
+          - **ESP32** - Original ESP32
+          - **ESP32-S2** - ESP32-S2 series
+          - **ESP32-S3** - ESP32-S3 series  
+          - **ESP32-C3** - ESP32-C3 series
+          
+          #### Flashing
+          
+          Each chip variant includes:
+          - `main.bin` - Main application binary
+          - `bootloader.bin` - Bootloader
+          - `partition-table.bin` - Partition table
+          - `flash_image.bin` - Combined flashable image (if available)
+          - `flash.sh` / `flash.bat` - Flash scripts
+          - `README.md` - Detailed flashing instructions
+          - SHA256 checksums for all binaries
+          
+          See the README.md in each chip folder for detailed flashing instructions.
+          
+          ### Quick Flash
+          
+          **Linux/Mac:**
+          ```bash
+          ./flash.sh /dev/ttyUSB0
+          ```
+          
+          **Windows:**
+          ```cmd
+          flash.bat COM3
+          ```
+        files: |
+          artifacts/**/*
+        draft: false
+        prerelease: ${{ contains(steps.version_info.outputs.tag_name, '-') || contains(steps.version_info.outputs.tag_name, 'alpha') || contains(steps.version_info.outputs.tag_name, 'beta') || contains(steps.version_info.outputs.tag_name, 'rc') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
