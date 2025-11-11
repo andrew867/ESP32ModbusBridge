@@ -43,7 +43,7 @@ jobs:
     - name: Install ESP-IDF
       uses: espressif/esp-idf-ci-action@v1
       with:
-        esp_idf_version: release/v5.5
+        esp_idf_version: v5.5.1
         target: ${{ github.event.inputs.target || 'esp32' }}
 
     - name: Clean build (if requested)
