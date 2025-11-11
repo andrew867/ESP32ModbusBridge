@@ -163,12 +163,15 @@ echo Flash complete!
 EOF
         
         # Create README for release
-        cat > release/README.md << 'README_EOF'
+        BUILD_DATE="${{ steps.build_info.outputs.build_date }}"
+        COMMIT_SHA="${{ steps.build_info.outputs.commit_sha }}"
+        TARGET_CHIP="${{ steps.build_info.outputs.target }}"
+        cat > release/README.md << README_EOF
 # ESP32ModbusBridge Firmware Release
 
-**Build Date:** ${{ steps.build_info.outputs.build_date }}  
-**Commit:** ${{ steps.build_info.outputs.commit_sha }}  
-**Target:** ${{ steps.build_info.outputs.target }}
+**Build Date:** ${BUILD_DATE}
+**Commit:** ${COMMIT_SHA}
+**Target:** ${TARGET_CHIP}
 
 ## Files
 
