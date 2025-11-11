@@ -72,7 +72,7 @@ jobs:
         sed -i 's|^CONFIG_PARTITION_TABLE_FILENAME=.*|CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"|' sdkconfig
         # Verify custom partition table is configured
         if grep -q '^CONFIG_PARTITION_TABLE_CUSTOM=y' sdkconfig; then
-          echo "✅ Custom partition table is configured"
+          echo "✅ Custom partition table is configured in sdkconfig"
           grep "PARTITION_TABLE" sdkconfig | head -5
         else
           echo "❌ Error: Failed to configure custom partition table!"
@@ -82,11 +82,16 @@ jobs:
         fi
         if [ -f partitions.csv ]; then
           echo "✅ partitions.csv found"
-          grep factory partitions.csv || true
+          echo "Partition table contents:"
+          cat partitions.csv
         else
           echo "❌ Error: partitions.csv not found!"
           exit 1
         fi
+        # Delete any cached partition table binaries to force regeneration
+        rm -rf build/partition_table || true
+        # Reconfigure to pick up the new partition table settings
+        idf.py reconfigure
 
     - name: Build project
       working-directory: ESP32ModbusBridge
