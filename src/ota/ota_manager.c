@@ -84,7 +84,6 @@ esp_err_t ota_manager_start_update(const char *url)
         return err;
     }
 
-    esp_ota_handle_t ota_handle = NULL;
     const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
     if (update_partition == NULL) {
         ESP_LOGE(TAG, "No OTA partition found");
