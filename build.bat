@@ -93,10 +93,6 @@ REM This is especially important when partition table settings change
 echo.
 echo Cleaning build to ensure partition table changes are applied...
 idf.py fullclean
-if %ERRORLEVEL% NEQ 0 (
-    echo Error: Failed to set target
-    exit /b 1
-)
 
 REM Build the project
 echo Building project...
