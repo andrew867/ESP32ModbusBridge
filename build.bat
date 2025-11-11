@@ -88,13 +88,10 @@ if not exist "build" (
 REM Set target (this may run fullclean)
 idf.py set-target %TARGET%
 
-REM Clean build to ensure partition table changes are picked up
-REM This is especially important when partition table settings change
-echo.
-echo Cleaning build to ensure partition table changes are applied...
-idf.py fullclean
-
 REM Build the project
+REM Note: If you change partition table settings, you may need to run:
+REM   idf.py fullclean
+REM before building to ensure changes are picked up.
 echo Building project...
 idf.py build
 if %ERRORLEVEL% NEQ 0 (
