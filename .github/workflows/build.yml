@@ -126,55 +126,46 @@ jobs:
         cp flash.bat release/flash.bat 2>/dev/null || true
         chmod +x release/flash.sh 2>/dev/null || true
         
-        # Create README for release
+        # Create README for release using printf to avoid YAML parsing issues
         BUILD_DATE="${{ steps.build_info.outputs.build_date }}"
         COMMIT_SHA="${{ steps.build_info.outputs.commit_sha }}"
         TARGET_CHIP="${{ steps.build_info.outputs.target }}"
-        cat > release/README.md << README_EOF
-# ESP32ModbusBridge Firmware Release
-
-**Build Date:** ${BUILD_DATE}
-**Commit:** ${COMMIT_SHA}
-**Target:** ${TARGET_CHIP}
-
-## Files
-
-- `main.bin` - Main application binary
-- `bootloader.bin` - Bootloader binary
-- `partition-table.bin` - Partition table
-- `flash_image.bin` - Combined flashable image (if available)
-- `flash.sh` - Linux/Mac flash script
-- `flash.bat` - Windows flash script
-
-## Flashing Instructions
-
-### Linux/Mac
-```bash
-./flash.sh /dev/ttyUSB0
-```
-
-### Windows
-```cmd
-flash.bat COM3
-```
-
-### Manual (using esptool.py)
-```bash
-esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 921600 \
-  write_flash -z --flash_mode dio --flash_freq 40m --flash_size 4MB \
-  0x1000 bootloader.bin \
-  0x8000 partition-table.bin \
-  0x10000 main.bin
-```
-
-## Using ESP-IDF Tools
-
-If you have ESP-IDF installed:
-```bash
-cd ESP32ModbusBridge
-idf.py -p /dev/ttyUSB0 flash monitor
-```
-README_EOF
+        {
+          printf '# ESP32ModbusBridge Firmware Release\n\n'
+          printf 'Build Date: %s\n' "${BUILD_DATE}"
+          printf 'Commit: %s\n' "${COMMIT_SHA}"
+          printf 'Target: %s\n\n' "${TARGET_CHIP}"
+          printf '## Files\n\n'
+          printf '- `main.bin` - Main application binary\n'
+          printf '- `bootloader.bin` - Bootloader binary\n'
+          printf '- `partition-table.bin` - Partition table\n'
+          printf '- `flash_image.bin` - Combined flashable image (if available)\n'
+          printf '- `flash.sh` - Linux/Mac flash script\n'
+          printf '- `flash.bat` - Windows flash script\n\n'
+          printf '## Flashing Instructions\n\n'
+          printf '### Linux/Mac\n'
+          printf '```bash\n'
+          printf './flash.sh /dev/ttyUSB0\n'
+          printf '```\n\n'
+          printf '### Windows\n'
+          printf '```cmd\n'
+          printf 'flash.bat COM3\n'
+          printf '```\n\n'
+          printf '### Manual (using esptool.py)\n'
+          printf '```bash\n'
+          printf 'esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 921600 \\\n'
+          printf '  write_flash -z --flash_mode dio --flash_freq 40m --flash_size 4MB \\\n'
+          printf '  0x1000 bootloader.bin \\\n'
+          printf '  0x8000 partition-table.bin \\\n'
+          printf '  0x10000 main.bin\n'
+          printf '```\n\n'
+          printf '## Using ESP-IDF Tools\n\n'
+          printf 'If you have ESP-IDF installed:\n'
+          printf '```bash\n'
+          printf 'cd ESP32ModbusBridge\n'
+          printf 'idf.py -p /dev/ttyUSB0 flash monitor\n'
+          printf '```\n'
+        } > release/README.md
 
     - name: Upload release package
       uses: actions/upload-artifact@v4
