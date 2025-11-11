@@ -34,6 +34,8 @@
 #include "mbedtls/error.h"
 #include "mbedtls/platform.h"
 
+static const char *TAG = "tcp_client";
+
 // TLS wrapper using mbedtls directly (esp_tls.h not available in v5.5)
 typedef struct {
     mbedtls_ssl_context ssl;
@@ -55,6 +57,10 @@ typedef struct {
     bool skip_common_name;
     bool use_global_ca_store;
     int sockfd;
+    const unsigned char *servercert_buf;
+    size_t servercert_buf_len;
+    const unsigned char *cacert_buf;
+    size_t cacert_buf_len;
 } esp_tls_cfg_t;
 
 // TLS wrapper functions using mbedtls
@@ -168,8 +174,6 @@ static void esp_tls_conn_delete(esp_tls_t *tls)
 #include "freertos/semphr.h"
 #include <string.h>
 #include <stdlib.h>
-
-static const char *TAG = "tcp_client";
 
 #define TCP_CLIENT_HOST            "dongle_ssl.solarcloudsystem.com"
 #define TCP_CLIENT_PORT            4348
