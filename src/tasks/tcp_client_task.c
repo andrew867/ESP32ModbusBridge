@@ -22,15 +22,147 @@
 #include "../tasks/rs485_task.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
-#include "esp_tls.h"
-#include "esp_tls_mbedtls.h"
+#include "esp_https_ota.h"
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
 #include "mbedtls/ssl.h"
+#include "mbedtls/net_sockets.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/md5.h"
+#include "mbedtls/error.h"
+#include "mbedtls/platform.h"
+
+// TLS wrapper using mbedtls directly (esp_tls.h not available in v5.5)
+typedef struct {
+    mbedtls_ssl_context ssl;
+    mbedtls_ssl_config conf;
+    mbedtls_net_context server_fd;
+    mbedtls_entropy_context entropy;
+    mbedtls_ctr_drbg_context ctr_drbg;
+    int sockfd;
+    bool initialized;
+} esp_tls_t;
+
+typedef struct {
+    int timeout_ms;
+    const char *psk_hint_key;
+    size_t psk_hint_key_len;
+    const uint8_t *psk_key;
+    size_t psk_key_len;
+    const char **alpn_protos;
+    bool skip_common_name;
+    bool use_global_ca_store;
+    int sockfd;
+} esp_tls_cfg_t;
+
+// TLS wrapper functions using mbedtls
+static esp_tls_t *esp_tls_conn_new_sync(const char *hostname, size_t hostname_len, int port, const esp_tls_cfg_t *cfg)
+{
+    if (!cfg) return NULL;
+    
+    esp_tls_t *tls = calloc(1, sizeof(esp_tls_t));
+    if (!tls) return NULL;
+    
+    mbedtls_ssl_init(&tls->ssl);
+    mbedtls_ssl_config_init(&tls->conf);
+    mbedtls_net_init(&tls->server_fd);
+    mbedtls_entropy_init(&tls->entropy);
+    mbedtls_ctr_drbg_init(&tls->ctr_drbg);
+    
+    tls->sockfd = cfg->sockfd;
+    tls->server_fd.fd = cfg->sockfd;
+    
+    const char *pers = "tls_client";
+    int ret = mbedtls_ctr_drbg_seed(&tls->ctr_drbg, mbedtls_entropy_func, &tls->entropy, (const unsigned char *)pers, strlen(pers));
+    if (ret != 0) {
+        ESP_LOGE(TAG, "mbedtls_ctr_drbg_seed failed: %d", ret);
+        goto error;
+    }
+    
+    ret = mbedtls_ssl_config_defaults(&tls->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+    if (ret != 0) {
+        ESP_LOGE(TAG, "mbedtls_ssl_config_defaults failed: %d", ret);
+        goto error;
+    }
+    
+    // Configure PSK
+    if (cfg->psk_key && cfg->psk_key_len > 0) {
+        ret = mbedtls_ssl_conf_psk(&tls->conf, cfg->psk_key, cfg->psk_key_len, 
+                                   (const unsigned char *)cfg->psk_hint_key, cfg->psk_hint_key_len);
+        if (ret != 0) {
+            ESP_LOGE(TAG, "mbedtls_ssl_conf_psk failed: %d", ret);
+            goto error;
+        }
+    }
+    
+    mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_NONE);
+    mbedtls_ssl_conf_rng(&tls->conf, mbedtls_ctr_drbg_random, &tls->ctr_drbg);
+    
+    ret = mbedtls_ssl_setup(&tls->ssl, &tls->conf);
+    if (ret != 0) {
+        ESP_LOGE(TAG, "mbedtls_ssl_setup failed: %d", ret);
+        goto error;
+    }
+    
+    if (hostname) {
+        ret = mbedtls_ssl_set_hostname(&tls->ssl, hostname);
+        if (ret != 0) {
+            ESP_LOGE(TAG, "mbedtls_ssl_set_hostname failed: %d", ret);
+            goto error;
+        }
+    }
+    
+    mbedtls_ssl_set_bio(&tls->ssl, &tls->server_fd, mbedtls_net_send, mbedtls_net_recv, NULL);
+    
+    // Perform handshake
+    while ((ret = mbedtls_ssl_handshake(&tls->ssl)) != 0) {
+        if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+            ESP_LOGE(TAG, "mbedtls_ssl_handshake failed: %d", ret);
+            goto error;
+        }
+    }
+    
+    tls->initialized = true;
+    return tls;
+    
+error:
+    mbedtls_ssl_free(&tls->ssl);
+    mbedtls_ssl_config_free(&tls->conf);
+    mbedtls_net_free(&tls->server_fd);
+    mbedtls_entropy_free(&tls->entropy);
+    mbedtls_ctr_drbg_free(&tls->ctr_drbg);
+    free(tls);
+    return NULL;
+}
+
+static int esp_tls_conn_read(esp_tls_t *tls, void *data, size_t datalen)
+{
+    if (!tls || !tls->initialized) return -1;
+    return mbedtls_ssl_read(&tls->ssl, (unsigned char *)data, datalen);
+}
+
+static int esp_tls_conn_write(esp_tls_t *tls, const void *data, size_t datalen)
+{
+    if (!tls || !tls->initialized) return -1;
+    return mbedtls_ssl_write(&tls->ssl, (const unsigned char *)data, datalen);
+}
+
+static void esp_tls_conn_delete(esp_tls_t *tls)
+{
+    if (!tls) return;
+    if (tls->initialized) {
+        mbedtls_ssl_close_notify(&tls->ssl);
+    }
+    mbedtls_ssl_free(&tls->ssl);
+    mbedtls_ssl_config_free(&tls->conf);
+    mbedtls_net_free(&tls->server_fd);
+    mbedtls_entropy_free(&tls->entropy);
+    mbedtls_ctr_drbg_free(&tls->ctr_drbg);
+    free(tls);
+}
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
