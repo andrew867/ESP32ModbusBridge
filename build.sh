@@ -90,6 +90,11 @@ cd "$SCRIPT_DIR"
 
 # Set target
 echo -e "${GREEN}Setting target to $TARGET...${NC}"
+
+# Create build directory if it doesn't exist to avoid fullclean errors
+mkdir -p build
+
+# Set target (this may run fullclean, but we've ensured build dir exists)
 idf.py set-target "$TARGET"
 
 # Build the project

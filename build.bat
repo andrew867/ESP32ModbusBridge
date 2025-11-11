@@ -71,6 +71,11 @@ if %ERRORLEVEL% NEQ 0 (
 
 REM Set target
 echo Setting target to %TARGET%...
+
+REM Create build directory if it doesn't exist to avoid fullclean errors
+if not exist "build" mkdir build
+
+REM Set target (this may run fullclean, but we've ensured build dir exists)
 idf.py set-target %TARGET%
 if %ERRORLEVEL% NEQ 0 (
     echo Error: Failed to set target
