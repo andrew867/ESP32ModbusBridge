@@ -43,6 +43,9 @@ static uint16_t s_char_tx_handle = 0;
 static data_process_handle_t s_data_handle = NULL;
 static uint16_t s_conn_handle = BLE_HS_CONN_HANDLE_NONE;  // Current connection handle
 
+// Forward declaration
+static int ble_gap_event(struct ble_gap_event *event, void *arg);
+
 /**
  * @brief BLE send callback
  */
@@ -50,16 +53,26 @@ static void ble_send_callback(const uint8_t *data, size_t len)
 {
     // Send data via BLE notify/indicate
     if (s_conn_handle != BLE_HS_CONN_HANDLE_NONE && s_char_tx_handle != 0) {
+        // In ESP-IDF v5.5, ble_gatts_notify only takes conn_handle and chr_val_handle
+        // The notification will send the current characteristic value
+        // We need to update the characteristic value first, then notify
         struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
         if (om != NULL) {
-            // Use ble_gatts_notify to send notification
-            int rc = ble_gatts_notify(s_conn_handle, s_char_tx_handle, om);
+            // Update characteristic value
+            int rc = ble_gatts_chr_updated(s_char_tx_handle);
+            if (rc != 0) {
+                ESP_LOGE(TAG, "Failed to update characteristic: %d", rc);
+            }
+            
+            // Send notification (triggers sending the characteristic value)
+            rc = ble_gatts_notify(s_conn_handle, s_char_tx_handle);
             if (rc != 0) {
                 ESP_LOGE(TAG, "Failed to send BLE notify: %d", rc);
-                os_mbuf_free_chain(om);
             } else {
                 ESP_LOGD(TAG, "BLE notify sent: %zu bytes", len);
             }
+            
+            os_mbuf_free_chain(om);
         } else {
             ESP_LOGE(TAG, "Failed to create mbuf for BLE notify");
         }
@@ -94,10 +107,15 @@ static int ble_gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
     if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
         // Read characteristic
         if (attr_handle == s_char_tx_handle) {
-            // Return device status or data
-            const char *status = "OK";
-            rc = os_mbuf_append(ctxt->om, status, strlen(status));
-            return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+            // Return stored TX data if available, otherwise return status
+            if (s_ble_tx_len > 0) {
+                rc = os_mbuf_append(ctxt->om, s_ble_tx_buffer, s_ble_tx_len);
+                return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+            } else {
+                const char *status = "OK";
+                rc = os_mbuf_append(ctxt->om, status, strlen(status));
+                return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+            }
         }
     } else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
         // Write characteristic
@@ -182,8 +200,8 @@ static void ble_on_sync(void)
     fields.tx_pwr_lvl_is_present = 0;
     fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
     fields.slave_itvl_range = NULL;
-    fields.adv_itvl_min = BLE_GAP_ADV_FAST_INTERVAL1_MIN;
-    fields.adv_itvl_max = BLE_GAP_ADV_FAST_INTERVAL1_MAX;
+    // Note: adv_itvl_min and adv_itvl_max are not in ble_hs_adv_fields in v5.5
+    // Interval is set in adv_params instead
 
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
@@ -214,9 +232,6 @@ static void ble_on_reset(int reason)
 {
     ESP_LOGE(TAG, "BLE reset: reason=%d", reason);
 }
-
-// Forward declaration
-static int ble_gap_event(struct ble_gap_event *event, void *arg);
 
 /**
  * @brief BLE GAP event handler
@@ -292,7 +307,8 @@ esp_err_t ble_task_init(void)
     ESP_LOGI(TAG, "Initializing BLE");
 
     // Initialize NimBLE
-    ESP_ERROR_CHECK(esp_nimble_hci_and_controller_init());
+    // In ESP-IDF v5.5, use esp_nimble_hci_init() instead
+    ESP_ERROR_CHECK(esp_nimble_hci_init());
 
     nimble_port_init();
 
