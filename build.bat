@@ -87,6 +87,12 @@ if not exist "build" (
 
 REM Set target (this may run fullclean)
 idf.py set-target %TARGET%
+
+REM Clean build to ensure partition table changes are picked up
+REM This is especially important when partition table settings change
+echo.
+echo Cleaning build to ensure partition table changes are applied...
+idf.py fullclean
 if %ERRORLEVEL% NEQ 0 (
     echo Error: Failed to set target
     exit /b 1

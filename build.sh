@@ -103,6 +103,12 @@ mkdir -p build
 # Set target (this may run fullclean)
 idf.py set-target "$TARGET"
 
+# Clean build to ensure partition table changes are picked up
+# This is especially important when partition table settings change
+echo ""
+echo -e "${YELLOW}Cleaning build to ensure partition table changes are applied...${NC}"
+idf.py fullclean
+
 # Build the project
 echo -e "${GREEN}Building project...${NC}"
 idf.py build
